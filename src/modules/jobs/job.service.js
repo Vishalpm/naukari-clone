@@ -1,6 +1,7 @@
 const Job              = require("../../models/Job");
 const RecruiterProfile = require("../../models/RecruiterProfile");
 const JobSeekerProfile = require("../../models/JobSeekerProfile");
+const { getSignedFileUrl } = require("../../utils/s3.utils");
 
 // ── Helper ─────────────────────────────────────────────────
 const getRecruiter = async (userId) => {
@@ -109,6 +110,18 @@ const getMyJobById = async (userId, jobId) => {
   return job;
 };
 
+const signJobLogos = async (jobs) => {
+  return Promise.all(
+    jobs.map(async (job) => {
+      const j = job.toObject ? job.toObject() : { ...job };
+      if (j.recruiter?.companyLogo) {
+        j.recruiter.companyLogo = await getSignedFileUrl(j.recruiter.companyLogo);
+      }
+      return j;
+    })
+  );
+};
+
 // ── Public — search jobs ───────────────────────────────────
 const searchJobs = async (query) => {
   const {
@@ -167,7 +180,7 @@ const searchJobs = async (query) => {
     .skip((pageNum - 1) * limitNum)
     .limit(limitNum);
 
-  return { jobs, pagination: buildPagination(total, pageNum, limitNum) };
+  return { jobs: await signJobLogos(jobs), pagination: buildPagination(total, pageNum, limitNum) };
 };
 
 // ── Public — single job ────────────────────────────────────
@@ -175,7 +188,12 @@ const getJobById = async (jobId) => {
   const job = await Job.findOne({ _id: jobId, status: "active" })
     .populate("recruiter", "firstName lastName companyName companyLogo companyLocation companyWebsite");
   if (!job) throw new Error("Job not found or no longer active");
-  return job;
+
+  const j = job.toObject();
+  if (j.recruiter?.companyLogo) {
+    j.recruiter.companyLogo = await getSignedFileUrl(j.recruiter.companyLogo);
+  }
+  return j;
 };
 
 // ── Seeker — recommended jobs ──────────────────────────────
@@ -215,7 +233,7 @@ const getRecommendedJobs = async (userId) => {
     .sort({ createdAt: -1 })
     .limit(20);
 
-  return jobs;
+  return await signJobLogos(jobs);
 };
 
 module.exports = {

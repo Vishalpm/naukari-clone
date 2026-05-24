@@ -1,4 +1,6 @@
 const RecruiterProfile = require("../../models/RecruiterProfile");
+const { signObjectFiles } = require("../../utils/s3.utils");
+
 
 const getProfileByUserId = async (userId) => {
   const profile = await RecruiterProfile.findOne({ user: userId }).populate("user", "email role");
@@ -7,14 +9,20 @@ const getProfileByUserId = async (userId) => {
 };
 
 const getRecruiterProfile = async (userId) => {
-  return await getProfileByUserId(userId);
+  const profile = await getProfileByUserId(userId);
+  const data    = profile.toObject ? profile.toObject() : { ...profile };
+  return await signObjectFiles(data, ["companyLogo"]);
 };
 
 const updateRecruiterProfile = async (userId, body, files) => {
   const profile = await getProfileByUserId(userId);
   Object.assign(profile, body);
+  // if (files?.companyLogo?.[0]) {
+  //   profile.companyLogo = `uploads/logos/${files.companyLogo[0].filename}`;
+  // }
+
   if (files?.companyLogo?.[0]) {
-    profile.companyLogo = `uploads/logos/${files.companyLogo[0].filename}`;
+    profile.companyLogo = files.companyLogo[0].key;
   }
   await profile.save();
   return profile;

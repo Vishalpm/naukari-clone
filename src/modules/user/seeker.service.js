@@ -1,4 +1,5 @@
 const JobSeekerProfile = require("../../models/JobSeekerProfile");
+const { signObjectFiles } = require("../../utils/s3.utils");
 
 // ── Helper ─────────────────────────────────────────────────
 const getProfileByUserId = async (userId) => {
@@ -9,7 +10,15 @@ const getProfileByUserId = async (userId) => {
 
 // ── Get full seeker profile ────────────────────────────────
 const getSeekerProfile = async (userId) => {
-  return await getProfileByUserId(userId);
+  const profile = await getProfileByUserId(userId);
+
+  // Convert the plain profile doc to a plain object so we can mutate it
+  const data = profile.toObject ? profile.toObject() : { ...profile };
+
+  // Sign any stored S3 keys into temporary pre-signed URLs
+  const signed = await signObjectFiles(data, ["resume", "profilePhoto"]);
+
+  return signed;
 };
 
 // ── Update seeker profile ──────────────────────────────────
@@ -28,8 +37,12 @@ const updateSeekerProfile = async (userId, body, files) => {
   Object.assign(profile, body);
 
   // Handle file uploads
-  if (files?.resume?.[0])       profile.resume       = `uploads/resumes/${files.resume[0].filename}`;
-  if (files?.profilePhoto?.[0]) profile.profilePhoto = `uploads/photos/${files.profilePhoto[0].filename}`;
+  // if (files?.resume?.[0])       profile.resume       = `uploads/resumes/${files.resume[0].filename}`;
+  // if (files?.profilePhoto?.[0]) profile.profilePhoto = `uploads/photos/${files.profilePhoto[0].filename}`;
+
+  // AFTER — S3 returns the full URL in file.location
+  if (files?.resume?.[0])       profile.resume       = files.resume[0].key;
+  if (files?.profilePhoto?.[0]) profile.profilePhoto = files.profilePhoto[0].key;
 
   await profile.save();
   return profile;
