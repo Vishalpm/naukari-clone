@@ -27,7 +27,7 @@ const decryptMessage = (msg) => {
   }
 };
 
-// ── Helper — verify user belongs to conversation ───────────
+// ── Helper — verify user belongs to conversation 
 const getConversationAndVerifyAccess = async (conversationId, userId, role) => {
   const conv = await Conversation.findById(conversationId)
     .populate({ path: "seeker",    populate: { path: "user", select: "email role" } })
@@ -44,10 +44,9 @@ const getConversationAndVerifyAccess = async (conversationId, userId, role) => {
   return conv;
 };
 
-// ── Helper — find or create conversation ──────────────────
+// ── Helper — find or create conversation 
 const findOrCreateConversation = async (seeker, recruiter, job) => {
   let conversation = await Conversation.findOne({
-    job:       job._id,
     seeker:    seeker._id,
     recruiter: recruiter._id,
   });
@@ -139,7 +138,7 @@ const getMyConversations = async (userId, role) => {
   const lastMsgMap = {};
   lastMessages.forEach(m => { lastMsgMap[m._id.toString()] = m; });
 
-  // Get unread counts
+
   const unreadAgg = await Message.aggregate([
     {
       $match: {
@@ -188,6 +187,7 @@ const getMyConversations = async (userId, role) => {
         companyName: role === "job_seeker" ? conv.recruiter?.companyName : undefined,
         email:       role === "recruiter"  ? conv.seeker?.user?.email   : undefined,
         profileId:   role === "job_seeker" ? conv.recruiter?._id        : conv.seeker?._id,
+        designation: role === "job_seeker"  ? conv.recruiter?.designation : undefined
       },
       lastMessage,
       unreadCount: unread,
